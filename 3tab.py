@@ -13,7 +13,7 @@ import pytz
 # ==============================================================================
 DEFAULT_BIG_TECH_TICKERS = ['NVDA', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'AVGO', 'META', 'TSLA']
 DCA_DEFAULT_TICKER = "QQQ"  # DCA 탭 기본 티커
-MULTI_DEFAULT_TICKERS = "DIA SPY QQQ SCHD"  # 다중 티커 탭 기본값
+MULTI_DEFAULT_TICKERS = "DIA SPY QQQ"  # 다중 티커 탭 기본값
 DEFAULT_RISK_FREE_RATE = 3.75 / 100  # 기준금리 3.75%
 
 KST = pytz.timezone('Asia/Seoul')
@@ -260,7 +260,7 @@ st.set_page_config(layout="wide", page_title="Twoziq 투자 가이드")
 
 # --- 상태 관리 초기화 ---
 if 'active_tab' not in st.session_state:
-    st.session_state.active_tab = "빅테크 PER"
+    st.session_state.active_tab = "Tab 1 빅테크 PER"
 # DCA 티커 기본값: QQQ
 if 'dca_ticker_value' not in st.session_state:
     st.session_state.dca_ticker_value = DCA_DEFAULT_TICKER
@@ -275,7 +275,7 @@ with st.sidebar:
     ticker_symbol = None
 
     # 1. 티커 입력 (DCA 탭에만 표시)
-    if st.session_state.active_tab == "적립식 투자":
+    if st.session_state.active_tab == "Tab 2 적립식 투자":
         ticker_symbol = st.text_input(
             "DCA 분석 주식 티커:",
             value=st.session_state.dca_ticker_value,
@@ -319,7 +319,7 @@ with st.sidebar:
 # 6. 메뉴 설정 (유지)
 # ==============================================================================
 
-menu_options = ["빅테크 PER", "적립식 투자", "다중 티커 비교"]
+menu_options = ["Tab 1 빅테크 PER", " Tab 2 적립식 투자", "Tab 3 다중 티커 비교"]
 
 st.markdown("""
     <style>
@@ -379,7 +379,7 @@ for i, option in enumerate(menu_options):
                 st.session_state.active_tab = option
 
                 # 다중 티커 탭으로 전환 시 기본값 설정
-                if option == "다중 티커 비교":
+                if option == "Tab 3 다중 티커 비교":
                     st.session_state['multi_ticker_input_value'] = MULTI_DEFAULT_TICKERS
 
                 st.rerun()
@@ -393,7 +393,7 @@ st.markdown("---")
 # ------------------------------------------------------------------------------
 # 탭 1: 재무 분석 (빅테크) (수정: PER 기준선, 기준표, get_per_color 호출 제거)
 # ------------------------------------------------------------------------------
-if st.session_state.active_tab == "빅테크 PER":  # <-- 탭 이름을 "재무 분석"으로 가정하고 수정
+if st.session_state.active_tab == "Tab 1 빅테크 PER":  
     st.markdown("1️⃣ Tab 1 → 지금이 투자하기 적당한 시기인가?")
     st.caption("이 페이지는 단순 매수/매도 신호가 아니라, 투자 속도를 조절하기 위한 참고 지표입니다.")
     st.caption("ETF는 개별 종목처럼 적정 가치를 계산하는 것이 쉽지 않습니다. ")
@@ -527,7 +527,7 @@ if st.session_state.active_tab == "빅테크 PER":  # <-- 탭 이름을 "재무 
 # ------------------------------------------------------------------------------
 # 탭 2: 적립 모드 (DCA) (유지)
 # ------------------------------------------------------------------------------
-elif st.session_state.active_tab == "적립식 투자":
+elif st.session_state.active_tab == "Tab 2 적립식 투자":
 
     # 1. 데이터 로드 (탭 진입 시점에만 실행)
     if not ticker_symbol or ticker_symbol == "N/A_Ignored":
@@ -640,7 +640,7 @@ elif st.session_state.active_tab == "적립식 투자":
 # ------------------------------------------------------------------------------
 # 탭 3: 다중 티커 비교 (수정: Sharpe Ratio 색상 스케일 변경)
 # ------------------------------------------------------------------------------
-elif st.session_state.active_tab == "다중 티커 비교":
+elif st.session_state.active_tab == "Tab 3 다중 티커 비교":
 
     # 세션 상태에서 다중 티커 입력값을 가져와 기본값으로 사용 (탭 전환 시 기본값 설정됨)
     col_multi_input, col_multi_rf = st.columns([2, 1])
@@ -650,13 +650,13 @@ elif st.session_state.active_tab == "다중 티커 비교":
     st.caption("수치가 높을수록, 적은 기회비용으로 높은 수익을 내는 구조입니다.")
     st.caption(
         """
-        <span style='color: red; font-weight: bold;'>빨간색</span>은 한 번 더 고민하시고, 
-        차라리 <span style='color: blue; font-weight: bold;'>파란색</span>을 투자하세요.
+        <span style='color: red; font-weight: bold;'>빨간색</span>에 비해, 
+        <span style='color: blue; font-weight: bold;'>파란색</span>이 매력적인 상품입니다. 
         """,
         unsafe_allow_html=True
     )
     st.caption("좌상단에 가까울수록 좋은 종목이지만, 높은 수익률을 위해 리스크를 감수하는 것도 중요합니다.")
-
+    st.caption("배당상품은 해당 탭에서는 좋은 평가를 받지 못하니 참고하세요.")
     with col_multi_input:
         # key를 사용해 입력값의 영속성(Persistence) 유지
         multi_ticker_input = st.text_input(
@@ -724,3 +724,4 @@ elif st.session_state.active_tab == "다중 티커 비교":
 
     else:
         st.info("티커를 입력해 주세요.")
+
