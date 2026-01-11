@@ -651,8 +651,8 @@ elif st.session_state.active_tab == "적립 모드 (DCA)":
         legend=dict(x=0.01, y=0.99, yanchor="top", xanchor="left"),
         #yaxis=dict(title=dict(text="투자 금액/가치 (USD)", font=dict(color="green")), side="left", showgrid=True),
         #yaxis2=dict(title=dict(text="주가 (Price, 배경)", font=dict(color="gray")), overlaying="y", side="right",
-                    showgrid=False,
-                    range=[full_dca_results['Price'].min() * 0.9, full_dca_results['Price'].max() * 1.1])
+        #            showgrid=False,
+        #            range=[full_dca_results['Price'].min() * 0.9, full_dca_results['Price'].max() * 1.1])
     )
     st.plotly_chart(fig_dca, use_container_width=True)
 
@@ -752,6 +752,7 @@ elif st.session_state.active_tab == "다중 티커 비교":
             st.caption("Sharpe 지수 : 빨간색은 상대적으로 낮고, 파란색은 상대적으로 높게 표기함.")
     else:
         st.info("티커를 입력해 주세요.")
+
 
 
 
