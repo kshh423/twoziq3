@@ -321,7 +321,7 @@ with st.sidebar:
     period_options = {"1년": 365, "2년": 730, "3년": 3 * 365, "5년": 1825, "10년": 10 * 365}
 
     # DCA 탭 진입 시 기본값 '3년'으로 설정
-    default_period_key = "3년"
+    default_period_key = "1년"
     default_period_index = list(period_options.keys()).index(default_period_key)
 
     # **수정**: 기간 선택 로직 단순화
@@ -329,7 +329,7 @@ with st.sidebar:
                                         key='period_select_key')
 
     # 3. 날짜 계산 및 기간 인자 설정
-    days = period_options.get(selected_period_name, 3 * 365)  # 기본값 3년
+    days = period_options.get(selected_period_name, 1 * 365)  # 기본값 3년
     start_date_default = TODAY - timedelta(days=days)
 
     # st.date_input의 key에 selected_period_name을 포함하여 selectbox 변경 시 강제 업데이트
@@ -752,6 +752,7 @@ elif st.session_state.active_tab == "다중 티커 비교":
             st.caption("Sharpe 지수 : 빨간색은 상대적으로 낮고, 파란색은 상대적으로 높게 표기함.")
     else:
         st.info("티커를 입력해 주세요.")
+
 
 
 
