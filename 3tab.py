@@ -286,7 +286,7 @@ def get_per_color(per_value):
 # 4. Streamlit UI 및 레이아웃 설정 (Sidebar Fix)
 # ==============================================================================
 
-st.set_page_config(layout="wide", page_title="주식 분석 앱")
+st.set_page_config(layout="wide", page_title="Twoziq 투자 가이드")
 
 # --- 상태 관리 초기화 ---
 if 'active_tab' not in st.session_state:
@@ -742,5 +742,6 @@ elif st.session_state.active_tab == "다중 티커 비교":
             st.caption("Sharpe 지수 : 빨간색은 상대적으로 낮고, 파란색은 상대적으로 높게 표기함.")
     else:
         st.info("티커를 입력해 주세요.")
+
 
 
