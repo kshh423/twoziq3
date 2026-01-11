@@ -13,7 +13,7 @@ import pytz
 # ==============================================================================
 DEFAULT_BIG_TECH_TICKERS = ['NVDA', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'AVGO', 'META', 'TSLA']
 DCA_DEFAULT_TICKER = "QQQ"  # DCA 탭 기본 티커
-MULTI_DEFAULT_TICKERS = "DIA SPY QQQ SCHD QLD"  # 다중 티커 탭 기본값
+MULTI_DEFAULT_TICKERS = "DIA SPY QQQ SCHD"  # 다중 티커 탭 기본값
 DEFAULT_RISK_FREE_RATE = 3.75 / 100  # 기준금리 3.75%
 
 KST = pytz.timezone('Asia/Seoul')
@@ -742,3 +742,4 @@ elif st.session_state.active_tab == "다중 티커 비교":
             st.caption("Sharpe 지수 : 빨간색은 상대적으로 낮고, 파란색은 상대적으로 높게 표기함.")
     else:
         st.info("티커를 입력해 주세요.")
+
