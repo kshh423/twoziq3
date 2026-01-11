@@ -9,9 +9,13 @@ import time
 import pytz
 
 # ==============================================================================
-# 0. 전역 설정 및 상수 정의
+# 0. 전역 설정 및 상수 정의 (유지)
 # ==============================================================================
 DEFAULT_BIG_TECH_TICKERS = ['NVDA', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'AVGO', 'META', 'TSLA']
+DCA_DEFAULT_TICKER = "QQQ"  # DCA 탭 기본 티커
+MULTI_DEFAULT_TICKERS = "DIA SPY QQQ SCHD QLD"  # 다중 티커 탭 기본값
+DEFAULT_RISK_FREE_RATE = 3.75 / 100  # 기준금리 3.75%
+
 KST = pytz.timezone('Asia/Seoul')
 NOW_KST = datetime.now(KST)
 TODAY = NOW_KST.date()
@@ -33,10 +37,10 @@ PER_LINE_STYLES = {
 }
 PER_LEVELS_SORTED = sorted(list(set(PER_CRITERIA_DYNAMIC.values())))
 
-# ==============================================================================
-# 1. 데이터 로드 및 캐싱 함수
-# ==============================================================================
 
+# ==============================================================================
+# 1. 데이터 로드 및 캐싱 함수 (유지)
+# ==============================================================================
 @st.cache_data(ttl=3600)
 def load_ticker_info(ticker, max_retries=3):
     """티커 정보를 로드합니다 (EPS, 회사 이름)."""
@@ -60,18 +64,19 @@ def load_ticker_info(ticker, max_retries=3):
                 return None, f"Ticker information could not be loaded after {max_retries} attempts: {e}"
     return None, "Unexpected failure in Ticker Info loading."
 
+
 @st.cache_data(ttl=3600)
-def load_historical_data(ticker_or_list, start_date, end_date, max_retries=3, period=None):
+def load_historical_data(ticker_or_list, start_date=None, end_date=None, max_retries=3):
     """yfinance에서 주가 데이터를 로드합니다. (단일/복수 티커 지원)"""
-    if start_date == 'max':
-        start_date = None
-    
-    if period == 'max':
-        start_date = None
+
+    start_date_arg = start_date
+    end_date_arg = end_date
+    period_arg = None  # 강제 None 처리
 
     for attempt in range(max_retries):
         try:
-            hist = yf.download(ticker_or_list, start=start_date, end=end_date, period=period, progress=False)
+            hist = yf.download(ticker_or_list, start=start_date_arg, end=end_date_arg, period=period_arg,
+                               progress=False)
             if hist.empty:
                 return None, "해당 기간의 주가 데이터를 가져올 수 없습니다."
             return hist, None
@@ -83,19 +88,20 @@ def load_historical_data(ticker_or_list, start_date, end_date, max_retries=3, pe
                 return None, f"데이터 로드 중 오류가 발생했습니다: {e}"
     return None, "Unexpected failure in Historical Data loading."
 
+
 @st.cache_data(ttl=3600)
 def load_big_tech_data(tickers):
     """요청된 빅테크 종목의 최신 재무 정보를 로드합니다 (현재 PER 계산용)."""
     data_list = []
     tickers_obj = yf.Tickers(tickers)
-    
+
     for ticker in tickers:
         try:
             info = tickers_obj.tickers[ticker].info
             market_cap = info.get('marketCap', np.nan)
             trailing_pe = info.get('trailingPE', np.nan)
             net_income = market_cap / trailing_pe if market_cap and trailing_pe and trailing_pe > 0 else np.nan
-            
+
             data_list.append({
                 'Ticker': ticker,
                 'MarketCap': market_cap,
@@ -104,40 +110,33 @@ def load_big_tech_data(tickers):
             })
         except Exception:
             data_list.append({'Ticker': ticker, 'MarketCap': np.nan, 'TrailingPE': np.nan, 'NetIncome': np.nan})
-            
+
     return pd.DataFrame(data_list)
+
 
 @st.cache_data(ttl=3600)
 def calculate_accurate_group_per_history(ticker_list, start_date, end_date):
     """빅테크 그룹의 시가총액 가중 평균 PER의 정확한 역사적 시계열을 계산합니다."""
-    
-    start_date_yf = None
-    end_date_yf = None
+
+    start_date_yf = pd.to_datetime(start_date).strftime('%Y-%m-%d')
+    end_date_yf = pd.to_datetime(end_date).strftime('%Y-%m-%d')
     period_arg = None
-    
-    if start_date == 'max':
-        period_arg = 'max'
-    else:
-        start_date_dt = pd.to_datetime(start_date)
-        end_date_dt = pd.to_datetime(end_date)
-        start_date_yf = start_date_dt.strftime('%Y-%m-%d')
-        end_date_yf = end_date_dt.strftime('%Y-%m-%d')
-        
+
     combined_market_cap = pd.DataFrame()
     combined_net_income = pd.DataFrame()
     valid_tickers = []
-    
+
     with st.spinner("📊 PER 추이 계산 중..."):
         try:
             hist_all, hist_error = load_historical_data(
-                ticker_list, start_date=start_date_yf if start_date != 'max' else None, 
-                end_date=end_date_yf, period=period_arg
+                ticker_list, start_date=start_date_yf,
+                end_date=end_date_yf
             )
             if hist_all is None:
                 return None, hist_error
-            
+
             hist_closes = hist_all['Close'].dropna(axis=1, how='all')
-            
+
         except Exception as e:
             return None, f"주가 데이터 병렬 로드 중 오류 발생: {e}"
 
@@ -149,20 +148,20 @@ def calculate_accurate_group_per_history(ticker_list, start_date, end_date):
                 hist_close = hist_closes[ticker].dropna()
                 if hist_close.empty: continue
                 hist_close.index = hist_close.index.tz_localize(None)
-                
+
                 try:
                     shares = stock.fast_info['shares_outstanding']
                 except:
                     shares = stock.info.get('sharesOutstanding')
-                
+
                 if not shares: continue
 
                 combined_market_cap[ticker] = hist_close * shares
-                
+
                 income_stmt = stock.financials
                 income_keys = ['Net Income', 'Net Income Common Stockholders']
                 net_income_row = next((income_stmt.loc[k] for k in income_keys if k in income_stmt.index), None)
-                
+
                 if net_income_row is None: continue
 
                 net_income_row.index = pd.to_datetime(net_income_row.index).tz_localize(None)
@@ -179,14 +178,15 @@ def calculate_accurate_group_per_history(ticker_list, start_date, end_date):
     common_index = combined_market_cap.index.intersection(combined_net_income.index)
     total_market_cap = combined_market_cap.loc[common_index, valid_tickers].sum(axis=1)
     total_net_income = combined_net_income.loc[common_index, valid_tickers].sum(axis=1)
-    
+
     group_per = total_market_cap / total_net_income.mask(total_net_income <= 0)
     group_per = group_per.astype(float).replace([np.inf, -np.inf], np.nan).dropna()
-    
+
     if group_per.empty:
         return None, "순이익이 양수인 기간의 데이터가 부족하여 그룹 PER 시계열을 계산할 수 없습니다."
-        
+
     return group_per, None
+
 
 @st.cache_data(ttl=3600)
 def calculate_multi_ticker_metrics(ticker_list, start_date, end_date):
@@ -195,24 +195,25 @@ def calculate_multi_ticker_metrics(ticker_list, start_date, end_date):
     if not ticker_list:
         return None, "티커를 입력해주세요."
 
+    # period 인자 제거
     hist_data, error = load_historical_data(ticker_list, start_date, end_date)
     if error: return None, error
-    
+
     if isinstance(hist_data.columns, pd.MultiIndex):
         returns = hist_data['Close'].pct_change().dropna(axis=0, how='all')
     else:
         returns = hist_data['Close'].pct_change().dropna()
         returns = pd.DataFrame(returns, columns=ticker_list)
-        
+
     returns = returns.dropna(axis=1, how='all')
 
-    if returns.empty or len(returns) < 20: 
+    if returns.empty or len(returns) < 20:
         return None, "데이터 부족 또는 티커 오류로 수익률 계산 불가."
-    
+
     annual_factor = 252
     mean_returns = returns.mean() * annual_factor
     annual_volatility = returns.std() * np.sqrt(annual_factor)
-    
+
     metrics_list = []
     for ticker in returns.columns:
         metrics_list.append({
@@ -220,15 +221,16 @@ def calculate_multi_ticker_metrics(ticker_list, start_date, end_date):
             'Return': mean_returns.get(ticker, 0.0),
             'Volatility': annual_volatility.get(ticker, 0.0)
         })
-        
+
     df_metrics = pd.DataFrame(metrics_list)
     df_metrics['Sharpe_Ratio'] = df_metrics['Return'] / df_metrics['Volatility'].mask(df_metrics['Volatility'] == 0)
     df_metrics = df_metrics.sort_values(by='Return', ascending=False).reset_index(drop=True)
-    
+
     return df_metrics, None
 
+
 # ==============================================================================
-# 2. 핵심 계산 함수 (DCA용)
+# 2. 핵심 계산 함수 (DCA용) (유지)
 # ==============================================================================
 
 def calculate_per_and_indicators(df, eps):
@@ -242,8 +244,9 @@ def calculate_per_and_indicators(df, eps):
 
     return data
 
+
 # ==============================================================================
-# 3. 유틸리티 및 포매팅 함수
+# 3. 유틸리티 및 포매팅 함수 (유지)
 # ==============================================================================
 
 @st.cache_data
@@ -257,10 +260,11 @@ def format_value(val):
         return f"{val / 1e9:,.2f}B"
     return f"{val:,.2f}"
 
+
 def get_per_color(per_value):
     """PER 값에 따른 색상을 반환합니다."""
     if np.isnan(per_value): return "gray", "N/A"
-    
+
     if per_value < PER_CRITERIA_DYNAMIC['BUY_3X']:
         return "green", "3배 레버리지 매수 구간 (30 미만)"
     elif PER_CRITERIA_DYNAMIC['BUY_3X'] <= per_value < PER_CRITERIA_DYNAMIC['BUY_2X']:
@@ -277,71 +281,79 @@ def get_per_color(per_value):
         return "#8b0000", "매도 구간 (45 이상)"
     return "black", "N/A"
 
+
 # ==============================================================================
-# 4. Streamlit UI 및 레이아웃 설정
+# 4. Streamlit UI 및 레이아웃 설정 (Sidebar Fix)
 # ==============================================================================
 
 st.set_page_config(layout="wide", page_title="주식 분석 앱")
 
+# --- 상태 관리 초기화 ---
+if 'active_tab' not in st.session_state:
+    st.session_state.active_tab = "재무 분석"
+# DCA 티커 기본값: QQQ
+if 'dca_ticker_value' not in st.session_state:
+    st.session_state.dca_ticker_value = DCA_DEFAULT_TICKER
+# 다중 티커 입력값 초기화
+if 'multi_ticker_input_value' not in st.session_state:
+    st.session_state.multi_ticker_input_value = ""
+
 # --- 사이드바: 기본 설정 ---
 with st.sidebar:
     st.header("⚙️ 기본 설정")
-    ticker_symbol = st.text_input("주식 티커:", value="NVDA").upper()
 
-    period_options = {"1년": 365, "2년": 730, "5년": 1825, "YTD": 'ytd', "최대 기간": 'max'}
-    selected_period_name = st.selectbox("기간 선택:", list(period_options.keys()), index=0)
+    ticker_symbol = None
 
-    if selected_period_name == 'ytd':
-        start_date_default = date(TODAY.year, 1, 1)
-        days = (TODAY - start_date_default).days
-    elif selected_period_name == 'max':
-        start_date_default = TODAY - timedelta(days=365*20) 
-        days = 365*20
+    # 1. 티커 입력 (DCA 탭에만 표시)
+    if st.session_state.active_tab == "적립 모드 (DCA)":
+        ticker_symbol = st.text_input(
+            "DCA 분석 주식 티커:",
+            value=st.session_state.dca_ticker_value,
+            key="dca_ticker_input_key"
+        ).upper()
+        # 입력값 세션 상태에 저장
+        st.session_state.dca_ticker_value = ticker_symbol
     else:
-        days = period_options.get(selected_period_name, 365)
-        start_date_default = TODAY - timedelta(days=days)
+        # 다른 탭에서는 DCA 티커를 참조하지 않으므로 임시로 'N/A_Ignored' 설정 (오류 방지)
+        ticker_symbol = "N/A_Ignored"
 
-    start_date_input = st.date_input("시작 날짜:", value=start_date_default, max_value=TODAY)
-    end_date_input = st.date_input("최종 날짜:", value=TODAY, max_value=TODAY)
+    # 2. 기간 선택 설정 (수정: YTD, 최대 기간 제거)
+    period_options = {"1년": 365, "2년": 730, "3년": 3 * 365, "5년": 1825, "10년": 10 * 365}
 
-    if selected_period_name == 'max' and start_date_input == start_date_default:
-        start_date_final = 'max'
-    else:
-        start_date_final = start_date_input.strftime('%Y-%m-%d')
-        
+    # DCA 탭 진입 시 기본값 '3년'으로 설정
+    default_period_key = "3년"
+    default_period_index = list(period_options.keys()).index(default_period_key)
+
+    # **수정**: 기간 선택 로직 단순화
+    selected_period_name = st.selectbox("기간 선택:", list(period_options.keys()), index=default_period_index,
+                                        key='period_select_key')
+
+    # 3. 날짜 계산 및 기간 인자 설정
+    days = period_options.get(selected_period_name, 3 * 365)  # 기본값 3년
+    start_date_default = TODAY - timedelta(days=days)
+
+    # st.date_input의 key에 selected_period_name을 포함하여 selectbox 변경 시 강제 업데이트
+    start_date_input = st.date_input(
+        "시작 날짜:",
+        value=start_date_default,
+        max_value=TODAY,
+        key=f'start_date_key_{selected_period_name}'  # Dynamic Key FIX
+    )
+    end_date_input = st.date_input("최종 날짜:", value=TODAY, max_value=TODAY, key='end_date_key')
+
+    # yfinance에 전달할 최종 날짜 문자열
+    start_date_final = start_date_input.strftime('%Y-%m-%d')
     end_date_final = end_date_input.strftime('%Y-%m-%d')
 
 # ==============================================================================
-# 5. 핵심 데이터 로드 (DCA용)
+# 6. 메뉴 설정 (유지)
 # ==============================================================================
-
-info, info_error = load_ticker_info(ticker_symbol)
-if info_error:
-    st.error(f"티커 정보를 가져오는 데 실패했습니다: {info_error}")
-    st.stop()
-
-hist_data, data_error = load_historical_data(
-    ticker_symbol,
-    start_date=start_date_final,
-    end_date=end_date_final
-)
-if data_error:
-    st.error(f"데이터 로드 오류: {data_error}")
-    st.stop()
-
-df_calc = calculate_per_and_indicators(hist_data, info['EPS'])
-
-# ==============================================================================
-# 6. 메뉴 설정
-# ==============================================================================
-
-if 'active_tab' not in st.session_state:
-    st.session_state.active_tab = "재무 분석" 
 
 menu_options = ["재무 분석", "적립 모드 (DCA)", "다중 티커 비교"]
 
 st.markdown("""
     <style>
+    /* ... (CSS 코드는 유지) ... */
     div[data-testid="stHorizontalBlock"] {
         display: flex !important;
         flex-direction: row !important;
@@ -354,13 +366,13 @@ st.markdown("""
             grid-template-columns: 1fr 1fr !important;
             gap: 6px !important;
         }
-        
+
         div[data-testid="column"] {
             width: 100% !important;
             min-width: 0px !important;
             flex: none !important;
         }
-        
+
         .stButton button p {
             font-size: 0.72rem !important;
         }
@@ -379,32 +391,39 @@ for i, option in enumerate(menu_options):
         is_active = (st.session_state.active_tab == option)
         btn_type = "primary" if is_active else "secondary"
         if st.button(option, key=f"resp_btn_{i}", use_container_width=True, type=btn_type):
-            st.session_state.active_tab = option
-            st.rerun()
+            if st.session_state.active_tab != option:
+                # 탭 전환 시 active_tab을 업데이트
+                st.session_state.active_tab = option
+
+                # 다중 티커 탭으로 전환 시 기본값 설정
+                if option == "다중 티커 비교":
+                    st.session_state['multi_ticker_input_value'] = MULTI_DEFAULT_TICKERS
+
+                st.rerun()
 
 st.markdown("---")
 
 # ==============================================================================
-# 7. Tab 구현부
+# 7. Tab 구현부 (수정)
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 탭 1: 재무 분석 (빅테크)
+# 탭 1: 재무 분석 (빅테크) (수정: 현재 PER 표시 제거)
 # ------------------------------------------------------------------------------
 
 if st.session_state.active_tab == "재무 분석":
-    
+
     tech_df_raw = load_big_tech_data(DEFAULT_BIG_TECH_TICKERS)
-    
+
     if 'tech_select_state' not in st.session_state:
         st.session_state['tech_select_state'] = {t: True for t in DEFAULT_BIG_TECH_TICKERS}
 
     selected_tickers = [t for t, selected in st.session_state['tech_select_state'].items() if selected]
     selected_df = tech_df_raw[tech_df_raw['Ticker'].isin(selected_tickers)]
-    
+
     total_market_cap = selected_df['MarketCap'].sum()
     total_net_income = selected_df['NetIncome'].sum()
-    
+
     if total_net_income > 0:
         average_per = total_market_cap / total_net_income
         average_per_str = f"{average_per:,.2f}"
@@ -417,7 +436,7 @@ if st.session_state.active_tab == "재무 분석":
     group_per_series, hist_error_tab1 = calculate_accurate_group_per_history(
         selected_tickers, start_date=start_date_final, end_date=end_date_final
     )
-    
+
     if hist_error_tab1:
         st.warning(f"PER 추이 데이터를 로드할 수 없습니다: {hist_error_tab1}")
     elif group_per_series is None or group_per_series.empty:
@@ -428,32 +447,33 @@ if st.session_state.active_tab == "재무 분석":
         median_per_hist = clean_per_values.median()
 
         fig_per_tab1 = go.Figure()
-        
+
         fig_per_tab1.add_trace(go.Scatter(
-            x=group_per_series.index, y=group_per_series, 
+            x=group_per_series.index, y=group_per_series,
             mode='lines', name='시총 가중 평균 PER 추이',
             line=dict(color='#1f77b4', width=2),
             showlegend=False
         ))
-        
-        fig_per_tab1.add_hline(y=avg_per_hist, line_dash="dash", line_color="#d62728", 
+
+        fig_per_tab1.add_hline(y=avg_per_hist, line_dash="dash", line_color="#d62728",
                                annotation_text=f"평균: {avg_per_hist:.2f}")
-        fig_per_tab1.add_hline(y=median_per_hist, line_dash="dot", line_color="#ff7f0e", 
+        fig_per_tab1.add_hline(y=median_per_hist, line_dash="dot", line_color="#ff7f0e",
                                annotation_text=f"중앙값: {median_per_hist:.2f}")
 
-        current_per_val = group_per_series.iloc[-1]
-        fig_per_tab1.add_trace(go.Scatter(
-            x=[group_per_series.index[-1]], y=[current_per_val],
-            mode='markers', marker=dict(size=10, color='black'),
-            name=f"현재: {current_per_val:.2f}"
-        ))
+        # **수정**: 현재 PER 값 마커 제거
+        # current_per_val = group_per_series.iloc[-1]
+        # fig_per_tab1.add_trace(go.Scatter(
+        #     x=[group_per_series.index[-1]], y=[current_per_val],
+        #     mode='markers', marker=dict(size=10, color='black'),
+        #     name=f"현재: {current_per_val:.2f}"
+        # ))
 
         fig_per_tab1.update_layout(
-            title="빅테크 그룹 가중 평균 PER 히스토리",
-            xaxis_title="날짜", 
+            title="미국 빅테크 Top8 평균 PER",
+            xaxis_title="날짜",
             yaxis_title="PER",
-            hovermode="x unified", 
-            template="plotly_white", 
+            hovermode="x unified",
+            template="plotly_white",
             height=500,
             legend=dict(
                 orientation="h",
@@ -466,31 +486,32 @@ if st.session_state.active_tab == "재무 분석":
             margin=dict(l=10, r=10, t=50, b=10)
         )
         st.plotly_chart(fig_per_tab1, use_container_width=True)
-        
+
     st.markdown("---")
-    
+
     col_sum1, col_sum2, col_sum3 = st.columns(3)
     with col_sum1:
         st.metric(
-            label="선택 종목 평균 PER (TTM)", 
-            value=average_per_str, 
-            delta=position_text_raw if average_per_str != "N/A" else None, 
+            label="금일 기준 평균 PER",
+            value=average_per_str,
+            delta=position_text_raw if average_per_str != "N/A" else None,
             delta_color='off'
         )
     with col_sum2:
         st.metric(label="총 시가총액 합", value=format_value(total_market_cap))
     with col_sum3:
-        st.metric(label="총 순이익 합 (역산)", value=format_value(total_net_income))
+        st.metric(label="총 순이익 합", value=format_value(total_net_income))
 
     st.markdown("---")
-    
-    col_criteria, col_editor = st.columns([1, 2])
-    
+
+    col_criteria, col_editor = st.columns([1, 4])
+
     with col_criteria:
         investment_criteria = pd.DataFrame({
             "PER 범위": ["< 30", "30 ~ 32", "32 ~ 35", "35 ~ 38", "38 ~ 41", "41 ~ 45", ">= 45"],
             "권장 조치": ["3배 레버리지 매수", "2배 레버리지 매수", "1배 매수", "현금 보유", "3배 매도", "2배 매도", "매도"]
         })
+
 
         def highlight_criteria(s):
             if np.isnan(average_per): return [''] * len(s)
@@ -504,9 +525,12 @@ if st.session_state.active_tab == "재무 분석":
                     if low <= average_per < high: is_match = True
                 elif '>=' in per_range:
                     if average_per >= float(per_range.split('>=')[1]): is_match = True
-            except: pass
-            
-            return [f'background-color: {dynamic_color}; color: white; font-weight: bold;'] * len(s) if is_match else [''] * len(s)
+            except:
+                pass
+
+            return [f'background-color: {dynamic_color}; color: white; font-weight: bold;'] * len(
+                s) if is_match else [''] * len(s)
+
 
         st.markdown(f"**현재 평균 PER : {average_per_str}**")
         st.dataframe(
@@ -522,9 +546,9 @@ if st.session_state.active_tab == "재무 분석":
         editor_df['순이익 (USD)'] = editor_df['NetIncome'].apply(format_value)
 
         st.markdown("**분석 포함 종목 선택**", help="체크를 해제하면 전체 평균 계산에서 제외됩니다.")
-        
+
         edited_df = st.data_editor(
-            editor_df[['Select', 'Ticker', '시가총액 (USD)', 'PER (TTM)', '순이익 (USD)']],
+            editor_df[['Select', 'Ticker', '시가총액 (USD)', '순이익 (USD)', 'PER (TTM)']],
             column_config={
                 "Select": st.column_config.CheckboxColumn("선택"),
                 "Ticker": st.column_config.TextColumn(disabled=True),
@@ -535,17 +559,42 @@ if st.session_state.active_tab == "재무 분석":
             hide_index=True,
             key='big_tech_editor_v2'
         )
-        
+
         new_selections = {row['Ticker']: row['Select'] for _, row in edited_df.iterrows()}
         if new_selections != st.session_state['tech_select_state']:
             st.session_state['tech_select_state'] = new_selections
             st.rerun()
 
 # ------------------------------------------------------------------------------
-# 탭 2: 적립 모드 (DCA)
+# 탭 2: 적립 모드 (DCA) (유지)
 # ------------------------------------------------------------------------------
 elif st.session_state.active_tab == "적립 모드 (DCA)":
 
+    # 1. 데이터 로드 (탭 진입 시점에만 실행)
+    if not ticker_symbol or ticker_symbol == "N/A_Ignored":
+        st.warning("DCA 분석을 위해 사이드바에 유효한 티커를 입력해 주세요.")
+        st.stop()
+
+    # DCA 분석용 티커 로드 (Section 5 내용)
+    with st.spinner(f"[{ticker_symbol}] 데이터 로드 중..."):
+        info, info_error = load_ticker_info(ticker_symbol)
+        if info_error:
+            st.error(f"티커 정보를 가져오는 데 실패했습니다: {info_error}")
+            st.stop()
+
+        # FIX: period 인자 제거, start_date_final과 end_date_final만 사용
+        hist_data, data_error = load_historical_data(
+            ticker_symbol,
+            start_date=start_date_final,
+            end_date=end_date_final,
+        )
+        if data_error:
+            st.error(f"데이터 로드 오류: {data_error}")
+            st.stop()
+
+        df_calc = calculate_per_and_indicators(hist_data, info['EPS'])
+
+        # 2. DCA 시뮬레이션 및 플롯
     if 'dca_amount' not in st.session_state: st.session_state.dca_amount = 10.0
     if 'dca_freq' not in st.session_state: st.session_state.dca_freq = "매일"
 
@@ -556,9 +605,12 @@ elif st.session_state.active_tab == "적립 모드 (DCA)":
     dca_df['WeekOfYear'] = dca_df.index.isocalendar().week.astype(int)
     dca_df['Month'] = dca_df.index.month
 
-    if deposit_frequency == "매일": invest_dates = dca_df.index
-    elif deposit_frequency == "매주": invest_dates = dca_df.groupby('WeekOfYear')['Price'].head(1).index
-    elif deposit_frequency == "매월": invest_dates = dca_df.groupby('Month')['Price'].head(1).index
+    if deposit_frequency == "매일":
+        invest_dates = dca_df.index
+    elif deposit_frequency == "매주":
+        invest_dates = dca_df.groupby('WeekOfYear')['Price'].head(1).index
+    elif deposit_frequency == "매월":
+        invest_dates = dca_df.groupby('Month')['Price'].head(1).index
 
     dca_result = dca_df[dca_df.index.isin(invest_dates)].copy()
     dca_result['Shares_Bought'] = deposit_amount / dca_result['Price']
@@ -567,7 +619,8 @@ elif st.session_state.active_tab == "적립 모드 (DCA)":
 
     full_dca_results = dca_df.copy()
     full_dca_results['Total_Shares'] = dca_result['Total_Shares'].reindex(dca_df.index, method='ffill').fillna(0)
-    full_dca_results['Cumulative_Investment'] = dca_result['Cumulative_Investment'].reindex(dca_df.index, method='ffill').fillna(0)
+    full_dca_results['Cumulative_Investment'] = dca_result['Cumulative_Investment'].reindex(dca_df.index,
+                                                                                            method='ffill').fillna(0)
     full_dca_results['Current_Value'] = full_dca_results['Total_Shares'] * full_dca_results['Price']
 
     fig_dca = go.Figure()
@@ -575,25 +628,30 @@ elif st.session_state.active_tab == "적립 모드 (DCA)":
     fig_dca.add_trace(go.Scatter(x=full_dca_results.index, y=full_dca_results['Price'], mode='lines', name='주가 추이 (배경)',
                                  line=dict(color='gray', width=1), opacity=0.3, yaxis='y2'))
 
-    fig_dca.add_trace(go.Scatter(x=full_dca_results.index, y=full_dca_results['Current_Value'], mode='lines', name='현재 평가 가치',
-                                 line=dict(color='green', width=2), yaxis='y1'))
+    fig_dca.add_trace(
+        go.Scatter(x=full_dca_results.index, y=full_dca_results['Current_Value'], mode='lines', name='현재 평가 가치',
+                   line=dict(color='green', width=2), yaxis='y1'))
 
-    fig_dca.add_trace(go.Scatter(x=full_dca_results.index, y=full_dca_results['Cumulative_Investment'], mode='lines', name='총 투자 금액',
-                                 line=dict(color='red', width=2, dash='dash'), yaxis='y1'))
+    fig_dca.add_trace(
+        go.Scatter(x=full_dca_results.index, y=full_dca_results['Cumulative_Investment'], mode='lines', name='총 투자 금액',
+                   line=dict(color='red', width=2, dash='dash'), yaxis='y1'))
 
     fig_dca.update_layout(
         title=f"{ticker_symbol} 적립식 투자(DCA) 시뮬레이션", height=500, xaxis_title="날짜", hovermode="x unified",
         legend=dict(x=0.01, y=0.99, yanchor="top", xanchor="left"),
         yaxis=dict(title=dict(text="투자 금액/가치 (USD)", font=dict(color="green")), side="left", showgrid=True),
-        yaxis2=dict(title=dict(text="주가 (Price, 배경)", font=dict(color="gray")), overlaying="y", side="right", showgrid=False, range=[full_dca_results['Price'].min() * 0.9, full_dca_results['Price'].max() * 1.1])
+        yaxis2=dict(title=dict(text="주가 (Price, 배경)", font=dict(color="gray")), overlaying="y", side="right",
+                    showgrid=False,
+                    range=[full_dca_results['Price'].min() * 0.9, full_dca_results['Price'].max() * 1.1])
     )
     st.plotly_chart(fig_dca, use_container_width=True)
-    
+
     st.markdown("---")
     st.markdown("### 🛠️ 시뮬레이션 설정")
     col_dca_config1, col_dca_config2 = st.columns(2)
     with col_dca_config1:
-        st.number_input("**적립 금액 (USD)**", min_value=1.0, step=1.0, format="%.2f", key='dca_amount', help="매번 투자할 금액을 입력합니다.")
+        st.number_input("**적립 금액 (USD)**", min_value=1.0, step=1.0, format="%.2f", key='dca_amount',
+                        help="매번 투자할 금액을 입력합니다.")
     with col_dca_config2:
         current_freq_index = ["매일", "매주", "매월"].index(st.session_state.dca_freq)
         st.selectbox("**적립 주기**", ["매일", "매주", "매월"], index=current_freq_index, key='dca_freq')
@@ -606,43 +664,65 @@ elif st.session_state.active_tab == "적립 모드 (DCA)":
         current_value = final_row['Current_Value'].item()
         cumulative_investment = final_row['Cumulative_Investment'].item()
         col_dca_summary = st.columns(4)
-        col_dca_summary[0].metric(label="최종 평가 가치", value=f"${current_value:,.2f}", delta=f"${current_value - cumulative_investment:,.2f}")
+        col_dca_summary[0].metric(label="최종 평가 가치", value=f"${current_value:,.2f}",
+                                  delta=f"${current_value - cumulative_investment:,.2f}")
         col_dca_summary[1].metric("총 투자 금액", f"${cumulative_investment:,.2f}")
         col_dca_summary[2].metric("총 매수 주식 수", f"{final_row['Total_Shares'].item():,.4f} 주")
 
 # ------------------------------------------------------------------------------
-# 탭 3: 다중 티커 비교
+# 탭 3: 다중 티커 비교 (수정: Sharpe Ratio 색상 스케일 변경)
 # ------------------------------------------------------------------------------
 elif st.session_state.active_tab == "다중 티커 비교":
-    col_multi_input, col_multi_period, col_multi_rf = st.columns([2, 1, 1])
+
+    # 세션 상태에서 다중 티커 입력값을 가져와 기본값으로 사용 (탭 전환 시 기본값 설정됨)
+    col_multi_input, col_multi_rf = st.columns([2, 1])
+
     with col_multi_input:
-        multi_ticker_input = st.text_input("비교할 티커 입력", value="TQQQ QQQ SPY", key="multi_ticker_mpt_sec6")
-    with col_multi_period:
-        period_options_multi = {"1년": 365, "3년": 3 * 365, "5년": 5 * 365}
-        selected_period_multi_name = st.selectbox("분석 기간:", list(period_options_multi.keys()), index=0, key="period_mpt_sec6")
+        # key를 사용해 입력값의 영속성(Persistence) 유지
+        multi_ticker_input = st.text_input(
+            "비교할 티커 입력 (공백 또는 쉼표로 구분)",
+            value=st.session_state.multi_ticker_input_value,
+            key="multi_ticker_mpt_sec6"
+        )
+        # 사용자가 입력값을 변경하면 세션 상태에 저장하여 유지
+        st.session_state.multi_ticker_input_value = multi_ticker_input
+
     with col_multi_rf:
-        user_rf = st.number_input("기준금리(%)", value=3.0, step=0.1, key="rf_sec6")
+        user_rf = st.number_input("기준금리(%)", value=DEFAULT_RISK_FREE_RATE * 100, step=0.1, key="rf_sec6")
         rf_multi = user_rf / 100
-    
+
     ticker_list_multi = [t.strip().upper() for t in multi_ticker_input.replace(',', ' ').split() if t.strip()]
-    days_multi = period_options_multi[selected_period_multi_name]
-    start_date_multi, end_date_multi = (TODAY - timedelta(days=days_multi)).strftime('%Y-%m-%d'), TODAY.strftime('%Y-%m-%d')
+
+    # 사이드바의 start_date_final과 end_date_final 사용
+    start_date_multi, end_date_multi = start_date_final, end_date_final
 
     if ticker_list_multi:
         with st.spinner("다중 분석 중..."):
             df_m, err = calculate_multi_ticker_metrics(ticker_list_multi, start_date_multi, end_date_multi)
-        if err: st.error(err)
+        if err:
+            st.error(err)
         elif df_m is not None and not df_m.empty:
             df_m['Sharpe_Ratio'] = (df_m['Return'] - rf_multi) / df_m['Volatility']
 
             st.markdown("#### 📈 자산별 위험 대비 수익 현황", help="우상단: 고위험고수익, 좌상단: 가성비(고효율)")
+
+            # **핵심 수정**: 커스텀 색상 스케일 (Red-White-Blue) 정의
+            # [정규화된 값 (0.0~1.0), 색상 코드]
+            # 0.0: 최솟값 (빨강), 0.5: 중앙값 (흰색), 1.0: 최댓값 (파랑)
+            custom_rwb_colorscale = [
+                [0.0, 'rgb(255, 0, 0)'],  # 최소값: 순수한 빨간색
+                [0.5, 'rgb(255, 255, 255)'],  # 중앙값: 순수한 흰색
+                [1.0, 'rgb(0, 0, 255)']  # 최댓값: 순수한 파란색
+            ]
+
             fig_multi = go.Figure(go.Scatter(
                 x=df_m['Volatility'] * 100, y=df_m['Return'] * 100, mode='markers+text', text=df_m['Ticker'],
                 marker=dict(size=15, color=df_m['Sharpe_Ratio'],
-                            colorscale=[[0, 'red'], [0.5, 'white'], [1, 'blue']], showscale=True,
-                            colorbar=dict(title="Sharpe", orientation="h", y=-0.25, thickness=15))
+                            colorscale=custom_rwb_colorscale,  # 커스텀 색상 스케일 적용
+                            showscale=False)  # 색상 바 제거 유지
             ))
-            fig_multi.update_layout(xaxis_title="위험률 (%)", yaxis_title="수익률 (%)", template="plotly_white", height=600, margin=dict(b=100), xaxis=dict(rangemode='tozero'), yaxis=dict(rangemode='tozero'))
+            fig_multi.update_layout(xaxis_title="위험률 (%)", yaxis_title="수익률 (%)", template="plotly_white", height=600,
+                                    margin=dict(b=100), xaxis=dict(rangemode='tozero'), yaxis=dict(rangemode='tozero'))
             st.plotly_chart(fig_multi, use_container_width=True)
 
             df_d = df_m.sort_values(by='Sharpe_Ratio', ascending=False).reset_index(drop=True)
@@ -651,9 +731,14 @@ elif st.session_state.active_tab == "다중 티커 비교":
             df_d_f['Return'] = df_d_f['Return'].apply(lambda x: f"{x * 100:.2f}%")
             df_d_f['Volatility'] = df_d_f['Volatility'].apply(lambda x: f"{x * 100:.2f}%")
             df_d_f['Sharpe_Ratio'] = df_d_f['Sharpe_Ratio'].apply(lambda x: f"{x:.2f}")
-            st.dataframe(df_d_f.rename(columns={'Ticker':'티커','Return':'수익률','Volatility':'위험률','Sharpe_Ratio':'Sharpe Ratio'}), use_container_width=True)
+            st.dataframe(df_d_f.rename(
+                columns={'Ticker': '티커', 'Return': '수익률', 'Volatility': '위험률', 'Sharpe_Ratio': 'Sharpe Ratio'}),
+                use_container_width=True)
 
+            # --- 사용자 요청 반영 (Help 제거, 샤프 비율 하단 분리 및 기준 간소화) ---
             st.markdown(f"💡 **분석 결과:** 가장 효율적인 자산은 **{df_d.iloc[0]['Ticker']}**입니다.")
-            st.caption(f"ℹ️ 기간: {start_date_multi}~{end_date_multi} | 기준금리 {user_rf}% 반영", 
-                       help=f"Sharpe Ratio = (수익률 - {user_rf}%) / 변동성  \n\n0 이상: 고려 대상  \n1 이상: 우수")
-    else: st.info("티커를 입력해 주세요.")
+            st.caption(f"ℹ️ 기간: {start_date_multi}~{end_date_multi} | 기준금리 {user_rf}% 반영")
+            st.caption(f"**Sharpe Ratio** = (수익률 - {user_rf}%) / 변동성  \n\n**1 이상:** 우수")
+            st.caption("Sharpe 지수 : 빨간색은 상대적으로 낮고, 파란색은 상대적으로 높게 표기함.")
+    else:
+        st.info("티커를 입력해 주세요.")
