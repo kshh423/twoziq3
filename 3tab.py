@@ -722,7 +722,7 @@ elif st.session_state.active_tab == "다중 티커 비교":
                             showscale=False)  # 색상 바 제거 유지
             ))
             fig_multi.update_layout(xaxis_title="위험률 (%)", yaxis_title="수익률 (%)", template="plotly_white", height=600,
-                                    margin=dict(b=100), xaxis=dict(rangemode='tozero'), yaxis=dict(rangemode='tozero'))
+                                    margin=dict(b=100)) #xaxis=dict(rangemode='tozero'), yaxis=dict(rangemode='tozero'))
             st.plotly_chart(fig_multi, use_container_width=True)
 
             df_d = df_m.sort_values(by='Sharpe_Ratio', ascending=False).reset_index(drop=True)
@@ -742,4 +742,5 @@ elif st.session_state.active_tab == "다중 티커 비교":
             st.caption("Sharpe 지수 : 빨간색은 상대적으로 낮고, 파란색은 상대적으로 높게 표기함.")
     else:
         st.info("티커를 입력해 주세요.")
+
 
