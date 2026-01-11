@@ -481,7 +481,7 @@ if st.session_state.active_tab == "재무 분석":
         fig_per_tab1.update_layout(
             title="미국 빅테크 Top8 평균 PER",
             xaxis_title="날짜",
-            yaxis_title="PER",
+            #yaxis_title="PER",
             hovermode="x unified",
             template="plotly_white",
             height=500,
@@ -649,8 +649,8 @@ elif st.session_state.active_tab == "적립 모드 (DCA)":
     fig_dca.update_layout(
         title=f"{ticker_symbol} 적립식 투자(DCA) 시뮬레이션", height=500, xaxis_title="날짜", hovermode="x unified",
         legend=dict(x=0.01, y=0.99, yanchor="top", xanchor="left"),
-        yaxis=dict(title=dict(text="투자 금액/가치 (USD)", font=dict(color="green")), side="left", showgrid=True),
-        yaxis2=dict(title=dict(text="주가 (Price, 배경)", font=dict(color="gray")), overlaying="y", side="right",
+        #yaxis=dict(title=dict(text="투자 금액/가치 (USD)", font=dict(color="green")), side="left", showgrid=True),
+        #yaxis2=dict(title=dict(text="주가 (Price, 배경)", font=dict(color="gray")), overlaying="y", side="right",
                     showgrid=False,
                     range=[full_dca_results['Price'].min() * 0.9, full_dca_results['Price'].max() * 1.1])
     )
@@ -752,6 +752,7 @@ elif st.session_state.active_tab == "다중 티커 비교":
             st.caption("Sharpe 지수 : 빨간색은 상대적으로 낮고, 파란색은 상대적으로 높게 표기함.")
     else:
         st.info("티커를 입력해 주세요.")
+
 
 
 
