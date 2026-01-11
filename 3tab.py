@@ -420,8 +420,7 @@ st.markdown("---")
 # ------------------------------------------------------------------------------
 # 탭 1: 재무 분석 (빅테크) (수정: 현재 PER 표시 제거)
 # ------------------------------------------------------------------------------
-
-if st.session_state.active_tab == "빅테크 PER":
+if st.session_state.active_tab == "빅테크 PER":  # <-- 탭 이름을 "재무 분석"으로 가정하고 수정
 
     tech_df_raw = load_big_tech_data(DEFAULT_BIG_TECH_TICKERS)
 
@@ -470,18 +469,10 @@ if st.session_state.active_tab == "빅테크 PER":
         fig_per_tab1.add_hline(y=median_per_hist, line_dash="dot", line_color="#ff7f0e",
                                annotation_text=f"중앙값: {median_per_hist:.2f}")
 
-        # **수정**: 현재 PER 값 마커 제거
-        # current_per_val = group_per_series.iloc[-1]
-        # fig_per_tab1.add_trace(go.Scatter(
-        #     x=[group_per_series.index[-1]], y=[current_per_val],
-        #     mode='markers', marker=dict(size=10, color='black'),
-        #     name=f"현재: {current_per_val:.2f}"
-        # ))
-
         fig_per_tab1.update_layout(
             title="미국 빅테크 Top8 평균 PER",
             xaxis_title="날짜",
-            #yaxis_title="PER",
+            # yaxis_title="PER", # 주석 처리된 y축 타이틀 유지
             hovermode="x unified",
             template="plotly_white",
             height=500,
@@ -514,41 +505,19 @@ if st.session_state.active_tab == "빅테크 PER":
 
     st.markdown("---")
 
-    col_criteria, col_editor = st.columns([1, 3])
-
-    with col_criteria:
-        investment_criteria = pd.DataFrame({
-            "PER 범위": ["< 30", "30 ~ 32", "32 ~ 35", "35 ~ 38", "38 ~ 41", "41 ~ 45", ">= 45"],
-            "권장 조치": ["3배 레버리지 매수", "2배 레버리지 매수", "1배 매수", "현금 보유", "3배 매도", "2배 매도", "매도"]
-        })
+    # col_criteria, col_editor = st.columns([1, 3]) # 주석 유지
+    col_editor = st.columns(1)[0]  # <-- st.cloumns(1)[0] -> st.columns(1)[0] 오타 수정
 
 
-        def highlight_criteria(s):
-            if np.isnan(average_per): return [''] * len(s)
-            per_range = s['PER 범위'].replace(' ', '')
-            is_match = False
-            try:
-                if '<' in per_range:
-                    if average_per < float(per_range.split('<')[1]): is_match = True
-                elif '~' in per_range:
-                    low, high = map(float, per_range.split('~'))
-                    if low <= average_per < high: is_match = True
-                elif '>=' in per_range:
-                    if average_per >= float(per_range.split('>=')[1]): is_match = True
-            except:
-                pass
-
-            return [f'background-color: {dynamic_color}; color: white; font-weight: bold;'] * len(
-                s) if is_match else [''] * len(s)
+    #with col_criteria:
+    #    investment_criteria = pd.DataFrame({
+    #        "PER 범위": ["< 30", "30 ~ 32", "32 ~ 35", "35 ~ 38", "38 ~ 41", "41 ~ 45", ">= 45"],
+    #        "권장 조치": ["3배 레버리지 매수", "2배 레버리지 매수", "1배 매수", "현금 보유", "3배 매도", "2배 매도", "매도"]
+    #    })
+        # ... (이하 주석 처리된 코드)
 
 
-        st.markdown(f"**현재 평균 PER : {average_per_str}**")
-        st.dataframe(
-            investment_criteria.style.apply(highlight_criteria, axis=1),
-            hide_index=True, height=280, use_container_width=True
-        )
-
-    with col_editor:
+    with col_editor:  # <-- 이 라인의 들여쓰기 레벨을 if st.session_state.active_tab == "재무 분석": 바로 아래 레벨로 수정
         editor_df = tech_df_raw.copy()
         editor_df['Select'] = editor_df['Ticker'].apply(lambda t: st.session_state['tech_select_state'].get(t, True))
         editor_df['PER (TTM)'] = editor_df['TrailingPE'].apply(lambda x: f"{x:.2f}" if x > 0 else "-")
@@ -575,7 +544,7 @@ if st.session_state.active_tab == "빅테크 PER":
             st.session_state['tech_select_state'] = new_selections
             st.rerun()
 
-    st.caption("1️⃣ Tab 1 → 지금이 투자하기 적당한 시기인가?")
+    st.markdown("1️⃣ Tab 1 → 지금이 투자하기 적당한 시기인가?")
     st.caption("이 페이지는 단순 매수/매도 신호가 아니라, 투자 속도를 조절하기 위한 참고 지표입니다.")
     st.caption("ETF는 개별 종목처럼 적정 가치를 계산하는 것이 쉽지 않습니다. ")
     st.caption("Top 8 빅테크를 하나의 기업이라고 가정해 PER을 산출했습니다.")
@@ -652,17 +621,16 @@ elif st.session_state.active_tab == "적립식 투자":
                    line=dict(color='red', width=2, dash='dash'), yaxis='y1'))
 
     fig_dca.update_layout(
-            title=f"{ticker_symbol} 적립식 투자 백테스트", height=500, xaxis_title="날짜", hovermode="x unified",
-            legend=dict(x=0.01, y=0.99, yanchor="top", xanchor="left"),
-            # [수정 1] yaxis (왼쪽 축) 제목 제거
-            yaxis=dict(title=dict(text="", font=dict(color="green")), side="left", showgrid=True),
-            # [수정 2] yaxis2 (오른쪽 축, 배경) 제목 제거
-            yaxis2=dict(title=dict(text="", font=dict(color="gray")), overlaying="y", side="right",
-                        showgrid=False,
-                        range=[full_dca_results['Price'].min() * 0.9, full_dca_results['Price'].max() * 1.1])
+        title=f"{ticker_symbol} 적립식 투자 백테스트", height=500, xaxis_title="날짜", hovermode="x unified",
+        legend=dict(x=0.01, y=0.99, yanchor="top", xanchor="left"),
+        # [수정 1] yaxis (왼쪽 축) 제목 제거
+        yaxis=dict(title=dict(text="", font=dict(color="green")), side="left", showgrid=True),
+        # [수정 2] yaxis2 (오른쪽 축, 배경) 제목 제거
+        yaxis2=dict(title=dict(text="", font=dict(color="gray")), overlaying="y", side="right",
+                    showgrid=False,
+                    range=[full_dca_results['Price'].min() * 0.9, full_dca_results['Price'].max() * 1.1])
     )
     st.plotly_chart(fig_dca, use_container_width=True)
-
 
     st.markdown("---")
     st.markdown("### 🛠️ 시뮬레이션 설정")
@@ -686,7 +654,7 @@ elif st.session_state.active_tab == "적립식 투자":
                                   delta=f"${current_value - cumulative_investment:,.2f}")
         col_dca_summary[1].metric("총 투자 금액", f"${cumulative_investment:,.2f}")
         col_dca_summary[2].metric("총 매수 주식 수", f"{final_row['Total_Shares'].item():,.4f} 주")
-    st.caption("2️⃣ Tab 2 → 어떤 방식으로 투자할 것인가?")
+    st.markdown("2️⃣ Tab 2 → 어떤 방식으로 투자할 것인가?")
     st.caption("하락장은 장기 투자자에게 평균 매입 단가를 낮출 수 있는 구간입니다.")
     st.caption("단기 예측보다는 **장기 우상향**을 전제로 **적립식 매수 전략**을 유지하세요.")
 
@@ -743,7 +711,8 @@ elif st.session_state.active_tab == "다중 티커 비교":
                             showscale=False)  # 색상 바 제거 유지
             ))
             fig_multi.update_layout(xaxis_title="위험률 (%)", yaxis_title="수익률 (%)", template="plotly_white", height=600,
-                                    margin=dict(b=100)) #xaxis=dict(rangemode='tozero'), yaxis=dict(rangemode='tozero'))
+                                    margin=dict(
+                                        b=100))  # xaxis=dict(rangemode='tozero'), yaxis=dict(rangemode='tozero'))
             st.plotly_chart(fig_multi, use_container_width=True)
 
             df_d = df_m.sort_values(by='Sharpe_Ratio', ascending=False).reset_index(drop=True)
@@ -758,9 +727,9 @@ elif st.session_state.active_tab == "다중 티커 비교":
 
             # --- 사용자 요청 반영 (Help 제거, 샤프 비율 하단 분리 및 기준 간소화) ---
             st.markdown(f"💡 **분석 결과:** 가장 효율적인 자산은 **{df_d.iloc[0]['Ticker']}**입니다.")
-            
-            #st.caption(f"ℹ️ 기간: {start_date_multi}~{end_date_multi} | 기준금리 {user_rf}% 반영")
-            st.caption("3️⃣ Tab 3 → 어떤 종목을 선택할 것인가?")
+
+            # st.caption(f"ℹ️ 기간: {start_date_multi}~{end_date_multi} | 기준금리 {user_rf}% 반영")
+            st.markdown("3️⃣ Tab 3 → 어떤 종목을 선택할 것인가?")
             st.caption(f"**Sharpe Ratio** = (수익률 - {user_rf}%) / 변동성, 통상 **1 이상:** 우수")
             st.caption("간단히, Sharpe Ratio는 리턴/리스크. 투자 매력도를 나타내는 값 입니다.")
             st.caption("수치가 높을수록, 적은 기회비용으로 높은 수익을 내는 구조입니다.")
@@ -774,7 +743,6 @@ elif st.session_state.active_tab == "다중 티커 비교":
             st.caption("좌상단에 가까울수록 좋은 종목이지만, 높은 수익률을 위해 리스크를 감수하는 것도 중요합니다.")
     else:
         st.info("티커를 입력해 주세요.")
-
 
 
 
