@@ -319,7 +319,7 @@ with st.sidebar:
 # 6. 메뉴 설정 (유지)
 # ==============================================================================
 
-menu_options = ["Tab 1 빅테크 PER", " Tab 2 적립식 투자", "Tab 3 다중 티커 비교"]
+menu_options = ["Tab 1 빅테크 PER", "Tab 2 적립식 투자", "Tab 3 다중 티커 비교"]
 
 st.markdown("""
     <style>
@@ -724,4 +724,5 @@ elif st.session_state.active_tab == "Tab 3 다중 티커 비교":
 
     else:
         st.info("티커를 입력해 주세요.")
+
 
