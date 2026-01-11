@@ -578,7 +578,7 @@ if st.session_state.active_tab == "빅테크 PER":
 # ------------------------------------------------------------------------------
 # 탭 2: 적립 모드 (DCA) (유지)
 # ------------------------------------------------------------------------------
-elif st.session_state.active_tab == "적립식 매수":
+elif st.session_state.active_tab == "적립식 투자":
 
     # 1. 데이터 로드 (탭 진입 시점에만 실행)
     if not ticker_symbol or ticker_symbol == "N/A_Ignored":
@@ -755,6 +755,7 @@ elif st.session_state.active_tab == "다중 티커 비교":
             st.caption("Sharpe 지수 : 빨간색은 상대적으로 낮고, 파란색은 상대적으로 높게 표기함.")
     else:
         st.info("티커를 입력해 주세요.")
+
 
 
 
