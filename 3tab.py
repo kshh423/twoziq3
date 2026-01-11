@@ -574,8 +574,9 @@ if st.session_state.active_tab == "빅테크 PER":
         if new_selections != st.session_state['tech_select_state']:
             st.session_state['tech_select_state'] = new_selections
             st.rerun()
-            
-    st.caption("이 페이지는 단순 매수/매도 신호가 아니라, 투자 속도를 조절하기 위한 참고 지표입니다. ")
+
+    st.caption("1️⃣ Tab 1 → 지금이 투자하기 적당한 시기인가?")
+    st.caption("이 페이지는 단순 매수/매도 신호가 아니라, 투자 속도를 조절하기 위한 참고 지표입니다.")
     st.caption("ETF는 개별 종목처럼 적정 가치를 계산하는 것이 쉽지 않습니다. ")
     st.caption("Top 8 빅테크를 하나의 기업이라고 가정해 PER을 산출했습니다.")
     st.caption("중위값, 평균값을 보시고 현재 주가의 적정성을 판단해보세요. ")
@@ -685,7 +686,7 @@ elif st.session_state.active_tab == "적립식 투자":
                                   delta=f"${current_value - cumulative_investment:,.2f}")
         col_dca_summary[1].metric("총 투자 금액", f"${cumulative_investment:,.2f}")
         col_dca_summary[2].metric("총 매수 주식 수", f"{final_row['Total_Shares'].item():,.4f} 주")
-
+    st.caption("2️⃣ Tab 2 → 어떤 방식으로 투자할 것인가?")
     st.caption("하락장은 장기 투자자에게 평균 매입 단가를 낮출 수 있는 구간입니다.")
     st.caption("단기 예측보다는 **장기 우상향**을 전제로 **적립식 매수 전략**을 유지하세요.")
 
@@ -757,7 +758,9 @@ elif st.session_state.active_tab == "다중 티커 비교":
 
             # --- 사용자 요청 반영 (Help 제거, 샤프 비율 하단 분리 및 기준 간소화) ---
             st.markdown(f"💡 **분석 결과:** 가장 효율적인 자산은 **{df_d.iloc[0]['Ticker']}**입니다.")
+            
             #st.caption(f"ℹ️ 기간: {start_date_multi}~{end_date_multi} | 기준금리 {user_rf}% 반영")
+            st.caption("3️⃣ Tab 3 → 어떤 종목을 선택할 것인가?")
             st.caption(f"**Sharpe Ratio** = (수익률 - {user_rf}%) / 변동성, 통상 **1 이상:** 우수")
             st.caption("간단히, Sharpe Ratio는 리턴/리스크. 투자 매력도를 나타내는 값 입니다.")
             st.caption("수치가 높을수록, 적은 기회비용으로 높은 수익을 내는 구조입니다.")
@@ -768,9 +771,10 @@ elif st.session_state.active_tab == "다중 티커 비교":
                 """,
                 unsafe_allow_html=True
             )
-            st.caption("좌상단에 가까울수록 좋지만, 높은 수익률을 위해 리스크를 감수하는 것도 중요합니다.")
+            st.caption("좌상단에 가까울수록 좋은 종목이지만, 높은 수익률을 위해 리스크를 감수하는 것도 중요합니다.")
     else:
         st.info("티커를 입력해 주세요.")
+
 
 
 
