@@ -636,9 +636,12 @@ elif st.session_state.active_tab == "다중 티커 비교":
             df_m['Sharpe_Ratio'] = (df_m['Return'] - rf_multi) / df_m['Volatility']
 
             st.markdown("#### 📈 자산별 위험 대비 수익 현황", help="우상단: 고위험고수익, 좌상단: 가성비(고효율)")
-            fig_multi = go.Figure(go.Scatter(x=df_m['Volatility']*100, y=df_m['Return']*100, mode='markers+text', text=df_m['Ticker'], textposition="bottom center",
-                                            marker=dict(size=15, color=df_m['Sharpe_Ratio'], colorscale='Viridis', showscale=True, 
-                                                        colorbar=dict(title="Sharpe", orientation="h", y=-0.25, thickness=15, outlinewidth=0))))
+            fig_multi = go.Figure(go.Scatter(
+                x=df_m['Volatility'] * 100, y=df_m['Return'] * 100, mode='markers+text', text=df_m['Ticker'],
+                marker=dict(size=15, color=df_m['Sharpe_Ratio'],
+                            colorscale=[[0, 'red'], [0.5, 'white'], [1, 'blue']], showscale=True,
+                            colorbar=dict(title="Sharpe", orientation="h", y=-0.25, thickness=15))
+            ))
             fig_multi.update_layout(xaxis_title="위험률 (%)", yaxis_title="수익률 (%)", template="plotly_white", height=600, margin=dict(b=100), xaxis=dict(rangemode='tozero'), yaxis=dict(rangemode='tozero'))
             st.plotly_chart(fig_multi, use_container_width=True)
 
