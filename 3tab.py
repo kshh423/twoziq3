@@ -731,7 +731,7 @@ elif st.session_state.active_tab == "다중 티커 비교":
             # st.caption(f"ℹ️ 기간: {start_date_multi}~{end_date_multi} | 기준금리 {user_rf}% 반영")
             st.markdown("3️⃣ Tab 3 → 어떤 종목을 선택할 것인가?")
             st.caption(f"**Sharpe Ratio** = (수익률 - {user_rf}%) / 변동성, 통상 **1 이상:** 우수")
-            st.caption("간단히, Sharpe Ratio는 리턴/리스크. 투자 매력도를 나타내는 값 입니다.")
+            st.caption("간단히, **Sharpe Ratio**는 ( 리턴 ÷ 리스크 = **투자 매력도** ) 를 나타내는 값 입니다.")
             st.caption("수치가 높을수록, 적은 기회비용으로 높은 수익을 내는 구조입니다.")
             st.caption(
                 """
@@ -743,6 +743,7 @@ elif st.session_state.active_tab == "다중 티커 비교":
             st.caption("좌상단에 가까울수록 좋은 종목이지만, 높은 수익률을 위해 리스크를 감수하는 것도 중요합니다.")
     else:
         st.info("티커를 입력해 주세요.")
+
 
 
 
