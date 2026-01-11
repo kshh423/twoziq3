@@ -9,7 +9,7 @@ import time
 import pytz
 
 # ==============================================================================
-# 0. 전역 설정 및 상수 정의
+# 0. 전역 설정 및 상수 정의 (수정: PER 기준 삭제)
 # ==============================================================================
 DEFAULT_BIG_TECH_TICKERS = ['NVDA', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'AVGO', 'META', 'TSLA']
 DCA_DEFAULT_TICKER = "QQQ"  # DCA 탭 기본 티커
@@ -19,6 +19,11 @@ DEFAULT_RISK_FREE_RATE = 3.75 / 100  # 기준금리 3.75%
 KST = pytz.timezone('Asia/Seoul')
 NOW_KST = datetime.now(KST)
 TODAY = NOW_KST.date()
+
+
+# PER 기준 상수 (제거됨)
+
+# PER 기준선 Plotly 스타일 (제거됨)
 
 
 # ==============================================================================
@@ -229,7 +234,7 @@ def calculate_per_and_indicators(df, eps):
 
 
 # ==============================================================================
-# 3. 유틸리티 및 포매팅 함수 (유지)
+# 3. 유틸리티 및 포매팅 함수 (수정: get_per_color 제거)
 # ==============================================================================
 
 @st.cache_data
@@ -244,8 +249,11 @@ def format_value(val):
     return f"{val:,.2f}"
 
 
+# get_per_color 함수는 제거됨
+
+
 # ==============================================================================
-# 4. Streamlit UI 및 레이아웃 설정 (Sidebar Fix)
+# 4. Streamlit UI 및 레이아웃 설정 (Sidebar Fix) (유지)
 # ==============================================================================
 
 st.set_page_config(layout="wide", page_title="Twoziq 투자 가이드")
@@ -263,7 +271,6 @@ if 'multi_ticker_input_value' not in st.session_state:
 # --- 사이드바: 기본 설정 ---
 with st.sidebar:
     st.header("⚙️ 기본 설정")
-    st.caption("👈 여기서 분석 기간을 설정하고, '적립식 투자' 탭에서는 티커를 입력합니다.")
 
     ticker_symbol = None
 
@@ -307,34 +314,10 @@ with st.sidebar:
     # yfinance에 전달할 최종 날짜 문자열
     start_date_final = start_date_input.strftime('%Y-%m-%d')
     end_date_final = end_date_input.strftime('%Y-%m-%d')
-    
-    # 🚨 추가된 부분: 사이드바 하단에 최종 날짜 정보 명시
-    st.markdown("---")
-    st.markdown("##### 📅 현재 분석 기간")
-    st.caption(f"**시작:** {start_date_input.strftime('%Y-%m-%d')}")
-    st.caption(f"**최종:** {end_date_input.strftime('%Y-%m-%d')}")
-
-
-# ==============================================================================
-# 5. 앱 개요 및 사용 가이드 추가 (상부)
-# ==============================================================================
-st.title("📈 Twoziq 투자 분석 대시보드")
-st.markdown("---")
-
-st.info("""
-    ### 🧭 대시보드 사용 가이드
-    이 앱은 빅테크의 **가치 평가(PER)**, 단일 종목 **적립식 투자(DCA) 백테스트**, 그리고 복수 종목의 **위험/수익률(Sharpe Ratio)**을 비교하는 기능을 제공합니다.
-    
-    1. **좌측 사이드바:** 분석 **기간**을 설정하고, **적립식 투자** 탭에서는 분석할 **티커**를 입력합니다. (모바일에서는 👈 화살표를 눌러 사이드바를 여세요.)
-    2. **상단 탭:** 원하는 분석 모드(빅테크 PER, 적립식 투자, 다중 티커 비교)를 선택하세요.
-""")
-# st.markdown("---") # 아래 탭 버튼과 분리를 위해 잠시 주석 처리
 
 # ==============================================================================
 # 6. 메뉴 설정 (유지)
 # ==============================================================================
-# 탭 버튼 상단에 Horizontal Rule 추가 (가이드와 버튼 분리)
-st.markdown("---")
 
 menu_options = ["빅테크 PER", "적립식 투자", "다중 티커 비교"]
 
@@ -408,9 +391,14 @@ st.markdown("---")
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 탭 1: 재무 분석 (빅테크)
+# 탭 1: 재무 분석 (빅테크) (수정: PER 기준선, 기준표, get_per_color 호출 제거)
 # ------------------------------------------------------------------------------
-if st.session_state.active_tab == "빅테크 PER":
+if st.session_state.active_tab == "빅테크 PER":  # <-- 탭 이름을 "재무 분석"으로 가정하고 수정
+    st.markdown("1️⃣ Tab 1 → 지금이 투자하기 적당한 시기인가?")
+    st.caption("이 페이지는 단순 매수/매도 신호가 아니라, 투자 속도를 조절하기 위한 참고 지표입니다.")
+    st.caption("ETF는 개별 종목처럼 적정 가치를 계산하는 것이 쉽지 않습니다. ")
+    st.caption("Top 8 빅테크를 하나의 기업이라고 가정해 PER을 산출했습니다.")
+    st.caption("중위값, 평균값을 보시고 현재 주가의 적정성을 판단해보세요. ")
 
     tech_df_raw = load_big_tech_data(DEFAULT_BIG_TECH_TICKERS)
 
@@ -426,10 +414,12 @@ if st.session_state.active_tab == "빅테크 PER":
     if total_net_income > 0:
         average_per = total_market_cap / total_net_income
         average_per_str = f"{average_per:,.2f}"
-        position_text_raw = "현재 평균 PER"
+        # dynamic_color, position_text_raw = get_per_color(average_per) # <--- get_per_color 호출 제거
+        position_text_raw = "현재 평균 PER"  # <--- 대체 문구
     else:
         average_per = np.nan
         average_per_str = "N/A"
+        # dynamic_color, position_text_raw = "#gray", "데이터 없음" # <--- get_per_color 호출 제거
         position_text_raw = "데이터 없음"
 
     group_per_series, hist_error_tab1 = calculate_accurate_group_per_history(
@@ -453,9 +443,11 @@ if st.session_state.active_tab == "빅테크 PER":
             line=dict(color='#1f77b4', width=2),
             showlegend=False
         ))
-        
-        # PER 기준선 제거됨
-        
+
+        # PER 레벨 기준선 추가 (제거)
+        # for level, (color, name) in PER_LINE_STYLES.items():
+        #     fig_per_tab1.add_hline(...)
+
         fig_per_tab1.add_hline(y=avg_per_hist, line_dash="dash", line_color="#d62728",
                                annotation_text=f"평균: {avg_per_hist:.2f}",
                                annotation_position="bottom left")
@@ -481,6 +473,7 @@ if st.session_state.active_tab == "빅테크 PER":
         )
         st.plotly_chart(fig_per_tab1, use_container_width=True)
 
+
     st.markdown("---")
 
     col_sum1, col_sum2, col_sum3 = st.columns(3)
@@ -488,6 +481,7 @@ if st.session_state.active_tab == "빅테크 PER":
         st.metric(
             label="금일 기준 평균 PER",
             value=average_per_str,
+            # delta=position_text_raw if average_per_str != "N/A" else None, # <--- delta 제거
             delta_color='off'
         )
     with col_sum2:
@@ -496,26 +490,18 @@ if st.session_state.active_tab == "빅테크 PER":
         st.metric(label="총 순이익 합", value=format_value(total_net_income))
 
     st.markdown("---")
-    
-    # 🚨 설명 문구 상부로 이동 (Metric 바로 아래)
-    st.markdown("1️⃣ Tab 1 → 지금이 투자하기 적당한 시기인가?")
-    st.caption("이 페이지는 단순 매수/매도 신호가 아니라, 투자 속도를 조절하기 위한 참고 지표입니다.")
-    st.caption("ETF는 개별 종목처럼 적정 가치를 계산하는 것이 쉽지 않습니다. ")
-    st.caption("Top 8 빅테크를 하나의 기업이라고 가정해 PER을 산출했습니다.")
-    st.caption("중위값, 평균값을 보시고 현재 주가의 적정성을 판단해보세요. ")
-    
-    st.markdown("---")
 
+    # 🚨 수정된 부분: Data Editor를 전체 폭으로 배치 (단일 컬럼)
+    col_editor = st.columns(1)[0]
 
-    # Data Editor를 전체 폭으로 배치
-    col_editor = st.columns(1)[0] 
-    
-    with col_editor: 
+    # PER 기반 투자 기준표 UI는 완전히 제거됨
+
+    with col_editor:
         editor_df = tech_df_raw.copy()
         editor_df['Select'] = editor_df['Ticker'].apply(lambda t: st.session_state['tech_select_state'].get(t, True))
-        editor_df['PER'] = editor_df['TrailingPE'].apply(lambda x: f"{x:.2f}" if x > 0 else "-") # 컬럼명 'PER' 유지
-        editor_df['시가총액'] = editor_df['MarketCap'].apply(format_value) # 컬럼명 '시가총액' 유지
-        editor_df['순이익'] = editor_df['NetIncome'].apply(format_value) # 컬럼명 '순이익' 유지
+        editor_df['PER'] = editor_df['TrailingPE'].apply(lambda x: f"{x:.2f}" if x > 0 else "-")  # 컬럼명 'PER' 유지
+        editor_df['시가총액'] = editor_df['MarketCap'].apply(format_value)  # 컬럼명 '시가총액' 유지
+        editor_df['순이익'] = editor_df['NetIncome'].apply(format_value)  # 컬럼명 '순이익' 유지
 
         st.markdown("**분석 포함 종목 선택(USD)**", help="체크를 해제하면 전체 평균 계산에서 제외됩니다.")
 
@@ -537,8 +523,9 @@ if st.session_state.active_tab == "빅테크 PER":
             st.session_state['tech_select_state'] = new_selections
             st.rerun()
 
+
 # ------------------------------------------------------------------------------
-# 탭 2: 적립 모드 (DCA)
+# 탭 2: 적립 모드 (DCA) (유지)
 # ------------------------------------------------------------------------------
 elif st.session_state.active_tab == "적립식 투자":
 
@@ -546,6 +533,11 @@ elif st.session_state.active_tab == "적립식 투자":
     if not ticker_symbol or ticker_symbol == "N/A_Ignored":
         st.warning("DCA 분석을 위해 사이드바에 유효한 티커를 입력해 주세요.")
         st.stop()
+    st.markdown("2️⃣ Tab 2 → 어떤 방식으로 투자할 것인가?")
+    st.caption("거치식 투자(몰빵투자)는 큰 하락에 대응하기가 어렵습니다. ")
+    st.caption("하락장은 적립식 투자자에게는 평균 매입 단가를 낮출 수 있는 구간입니다.")
+    st.caption("단기 예측보다는 **장기 우상향**을 전제로 **적립식 매수 전략**을 유지하세요.")
+    st.caption("바닥을 잡지 않아도, 안정적인 수익률을 기대할 수 있습니다.")
 
     # DCA 분석용 티커 로드 (Section 5 내용)
     with st.spinner(f"[{ticker_symbol}] 데이터 로드 중..."):
@@ -620,6 +612,7 @@ elif st.session_state.active_tab == "적립식 투자":
     )
     st.plotly_chart(fig_dca, use_container_width=True)
 
+
     st.markdown("---")
     st.markdown("### 🛠️ 시뮬레이션 설정")
     col_dca_config1, col_dca_config2 = st.columns(2)
@@ -642,17 +635,27 @@ elif st.session_state.active_tab == "적립식 투자":
                                   delta=f"${current_value - cumulative_investment:,.2f}")
         col_dca_summary[1].metric("총 투자 금액", f"${cumulative_investment:,.2f}")
         col_dca_summary[2].metric("총 매수 주식 수", f"{final_row['Total_Shares'].item():,.4f} 주")
-    st.markdown("2️⃣ Tab 2 → 어떤 방식으로 투자할 것인가?")
-    st.caption("하락장은 장기 투자자에게 평균 매입 단가를 낮출 수 있는 구간입니다.")
-    st.caption("단기 예측보다는 **장기 우상향**을 전제로 **적립식 매수 전략**을 유지하세요.")
+
 
 # ------------------------------------------------------------------------------
-# 탭 3: 다중 티커 비교
+# 탭 3: 다중 티커 비교 (수정: Sharpe Ratio 색상 스케일 변경)
 # ------------------------------------------------------------------------------
 elif st.session_state.active_tab == "다중 티커 비교":
 
     # 세션 상태에서 다중 티커 입력값을 가져와 기본값으로 사용 (탭 전환 시 기본값 설정됨)
     col_multi_input, col_multi_rf = st.columns([2, 1])
+    st.markdown("3️⃣ Tab 3 → 어떤 종목을 선택할 것인가?")
+    st.caption(f"**Sharpe Ratio** = (수익률 - 기준 금리%) / 변동성, 통상 **1 이상:** 우수")
+    st.caption("간단히, Sharpe Ratio는 리턴/리스크. 투자 매력도를 나타내는 값 입니다.")
+    st.caption("수치가 높을수록, 적은 기회비용으로 높은 수익을 내는 구조입니다.")
+    st.caption(
+        """
+        <span style='color: red; font-weight: bold;'>빨간색</span>은 한 번 더 고민하시고, 
+        차라리 <span style='color: blue; font-weight: bold;'>파란색</span>을 투자하세요.
+        """,
+        unsafe_allow_html=True
+    )
+    st.caption("좌상단에 가까울수록 좋은 종목이지만, 높은 수익률을 위해 리스크를 감수하는 것도 중요합니다.")
 
     with col_multi_input:
         # key를 사용해 입력값의 영속성(Persistence) 유지
@@ -667,6 +670,7 @@ elif st.session_state.active_tab == "다중 티커 비교":
     with col_multi_rf:
         user_rf = st.number_input("기준금리(%)", value=DEFAULT_RISK_FREE_RATE * 100, step=0.1, key="rf_sec6")
         rf_multi = user_rf / 100
+
 
     ticker_list_multi = [t.strip().upper() for t in multi_ticker_input.replace(',', ' ').split() if t.strip()]
 
@@ -716,18 +720,7 @@ elif st.session_state.active_tab == "다중 티커 비교":
             # --- 사용자 요청 반영 (Help 제거, 샤프 비율 하단 분리 및 기준 간소화) ---
             st.markdown(f"💡 **분석 결과:** 가장 효율적인 자산은 **{df_d.iloc[0]['Ticker']}**입니다.")
 
-            # st.caption(f"ℹ️ 기간: {start_date_multi}~{end_date_multi} | 기준금리 {user_rf}% 반영")
-            st.markdown("3️⃣ Tab 3 → 어떤 종목을 선택할 것인가?")
-            st.caption(f"**Sharpe Ratio** = (수익률 - {user_rf}%) / 변동성, 통상 **1 이상:** 우수")
-            st.caption("간단히, Sharpe Ratio는 리턴/리스크. 투자 매력도를 나타내는 값 입니다.")
-            st.caption("수치가 높을수록, 적은 기회비용으로 높은 수익을 내는 구조입니다.")
-            st.caption(
-                """
-                <span style='color: red; font-weight: bold;'>빨간색</span>은 한 번 더 고민하시고, 
-                차라리 <span style='color: blue; font-weight: bold;'>파란색</span>을 투자하세요.
-                """,
-                unsafe_allow_html=True
-            )
-            st.caption("좌상단에 가까울수록 좋은 종목이지만, 높은 수익률을 위해 리스크를 감수하는 것도 중요합니다.")
+            st.caption(f"ℹ️ 기간: {start_date_multi}~{end_date_multi} | 기준금리 {user_rf}% 반영")
+
     else:
         st.info("티커를 입력해 주세요.")
